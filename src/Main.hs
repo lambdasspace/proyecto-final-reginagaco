@@ -15,4 +15,4 @@ main = do
       do
         putStrLn "Ingresa el nivel de dificultad:"
         pr <-  agente
-        juego pr agente Blanco primerosMov
+        juego pr inicial Blanco primerosMov

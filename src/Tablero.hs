@@ -137,7 +137,7 @@ valorTablero t cj c pr lp =
           sColorMovVal)
       thisValorTablero = length $ validos t c lp
   in if (List.null sColorMovVal)
-    then if (campeon board) == cj then 10000 else -10000
+    then if (campeon t) == cj then 10000 else -10000
     else
       if pr > 0
         then if sColor == cj then sColorValorTablero else - sColorValorTablero
@@ -154,7 +154,7 @@ valorFila t c =
       puntajeB = (fichas t Blanco)
 
 --ActTablero: Actualiza el tablero
-actTablero:: Tablero -> Posicion -> [Posicion]
+actTablero:: Tablero -> Posicion -> [Posicion] -> [Posicion]
 actTablero _ _ [] = []
 actTablero t p lp =
   do
@@ -220,8 +220,8 @@ el símbolo "X".-}
 --ImprimeFicha:: Imprime el símbolo del jugador
 imprimeFicha :: Color -> String
 imprimeFicha c
-  | c == White = "O"
-  | c == Black = "X"
+  | c == Blanco = "O"
+  | c == Negro = "X"
   | otherwise = " "
 
 --ImprimeFila : Imprime una fila del tablero
@@ -229,16 +229,16 @@ imprimeFicha c
 imprimeFila :: Tablero -> Int -> String
 imprimeFila t f = show f ++ " | " ++
   (intercalate " | "
-    (List.map(\pos -> print_symbol (board ! pos))
+    (List.map(\pos -> imprimeFicha (t ! pos))
     ([(x, f) | x <- [0..7]]))) ++" | " ++ show f
 
 --ImprimeTablero
 imprimeTablero :: Tablero -> String
-imprimeTablero =
+imprimeTablero t =
   "\n    0   1   2   3   4   5   6   7 \n -----------------------------------\n" ++
   (intercalate
   "\n -----------------------------------\n"
-  (List.map (imprimeFila board) $ [0..7])) ++ "\n -----------------------------------\n    0   1   2   3   4   5   6   7 "
+  (List.map (imprimeFila t) $ [0..7])) ++ "\n -----------------------------------\n    0   1   2   3   4   5   6   7 "
 
 {-Juego-}
 
@@ -253,19 +253,19 @@ juego pr t c lp = do
       putStrLn $ imprimeTablero t
       putStrLn ("El jugador con fichas negras tiene" ++ (show(fichas t Negro)) ++ "puntos")
       putStrLn ("El jugador con fichas blancas tiene"++ (show(fichas t Blanco))++ "puntos")
-      if campeon == Vacio then putStrLn "¡Empate! o-o"
-        else if campeon == Negro
+      if campeon t == Vacia then putStrLn "¡Empate! o-o"
+        else if campeon t == Negro
           then do
             putStrLn "¡El jugador con fichas negras ganó!"
           else putStrLn "¡El jugador con fichas blancas ganó!"
     else
       do
       putStrLn $ imprimeTablero t
-      if color == Blanco
+      if c == Blanco
         then
           do
           putStrLn "Haz tu movimiento jugador blanco"
-          putStrLn ("Quieres una sugerencia?:" ++ show(movAgente c pr l))
+          putStrLn ("Quieres una sugerencia?:" ++ show(movAgente t c pr l))
           putStrLn $ List.concat $ List.map show (validos t c l)
           mb <- movBlanco
           if valido t Blanco mb
@@ -275,15 +275,15 @@ juego pr t c lp = do
               do
               putStrLn "Movimiento Invalido: No olvides las reglas"
               juego pr t c lp
-    else
-      do
-      putStrLn "El agente esta buscando un movimiento"
-      let
-        mov = (movAgente t c pr lp)
-        l1 = actTablero t mov lp
-      juego pr (pintaMov mov t Negro) (contrario c) l1
+        else
+          do
+            putStrLn "El agente esta buscando un movimiento"
+            let
+              mov = (movAgente t c pr lp)
+              l1 = actTablero t mov lp
+            juego pr (pintaMov mov t Negro) (contrario c) l1
 
   where
     ganador = campeon t
-    mb = getMovimiento t Blanco
-    mn = getMovimiento t Negro
+    movBlanco = getMovimiento t Blanco
+    movNegro = getMovimiento t Negro

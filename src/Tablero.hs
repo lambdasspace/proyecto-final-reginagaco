@@ -93,8 +93,8 @@ campeon t = if fichasN > fichasB then Negro
 -- pintaMov : Pinta el movimiento del jugador en el teclado
 pintaMov :: Posicion -> Tablero -> Color -> Tablero
 pintaMov p t c =
-  let lp = capturada t p c in
-  Map.union(fromList[(p,c)])
+  let lp = capturada t p c
+  in Map.union(fromList[(p,c)])
     (Map.union(fromList $ List.zip lp (repeat $ c)) t)
 
 -- getMovimiento : Obtiene el movimiento del jugador leyendolo de la terminal
@@ -117,7 +117,173 @@ agente = do
     then error "Entrada invalida"
     else return $ read profundidad
 
-{- movAgente : Regresa el mejor movimiento para el agente
--- pr = profundidad
---movAgente :: Tablero -> Color -> Int -> [Posicion] -> Posicion
---movAgente t c pr lp = (\(posicion, _) -> posicion)(List.maxi) -}
+--movAgente : Regresa el mejor movimiento para el agente
+-- pr = profundidad p = posición
+movAgente :: Tablero -> Color -> Int -> [Posicion] -> Posicion
+movAgente t c pr lp =
+  (\(p, _) -> p) (List.maximumBy
+  (\(_,valorTablero1) (_,valorTablero2) -> compare valorTablero1 valorTablero2)
+  (List.map(\pos -> (pos, valorTablero (pintaMov pos t c) c c pr lp))(validos t c lp)))
+
+--ValorTablero : Regresa el valor del tablero
+-- Recibe: un tablero, el color del jugador, la lista de movimientos y la profundidad
+valorTablero :: Tablero -> Color -> Color -> Int -> [Posicion] -> Int
+valorTablero t cj c pr lp =
+  let sColor = contrario c
+      sColorMovVal  = validos t sColor lp
+      sColorValorTablero = maximum (
+        List.map
+          (\p -> valorTablero (pintaMov p t c) cj sColor (pr - 1) (actTablero t p lp))
+          sColorMovVal)
+      thisValorTablero = length $ validos t c lp
+  in if (List.null sColorMovVal)
+    then if (campeon board) == cj then 10000 else -10000
+    else
+      if pr > 0
+        then if sColor == cj then sColorValorTablero else - sColorValorTablero
+        else if sColor == cj then thisValorTablero else - thisValorTablero
+
+--ValorFila: Regresa el valor de la fila
+valorFila :: Tablero -> Color -> Int
+valorFila t c =
+  if c == Negro
+    then puntajeN - puntajeB
+    else puntajeB - puntajeN
+    where
+      puntajeN = (fichas t Negro)
+      puntajeB = (fichas t Blanco)
+
+--ActTablero: Actualiza el tablero
+actTablero:: Tablero -> Posicion -> [Posicion]
+actTablero _ _ [] = []
+actTablero t p lp =
+  do
+    eliminaElem  (x,y) lp3
+    where x = fst p
+          y = snd p
+          arriba = if (y+1 < 8) then
+            if (head (colores t [(x,y+1)])) == Vacia then (x,y+1) else (-1,-1)
+            else (-1,-1)
+          abajo = if (y-1 >= 0) then
+            if (head (colores t [(x,y-1)])) == Vacia then (x,y-1) else (-1,-1)
+            else (-1,-1)
+          izquierda = if (x-1 >= 0) then
+            if (head (colores t [(x-1,y)])) == Vacia then (x-1,y) else (-1,-1)
+            else (-1,-1)
+          derecha = if (x+1 < 8) then
+            if (head (colores t [(x+1,y)])) == Vacia then (x+1,y) else (-1,-1)
+            else (-1,-1)
+          arribaIzquierda = if (y+1 < 8 && x-1 >= 0) then
+            if (head (colores t [(x-1,y+1)])) == Vacia then (x,y+1) else (-1,-1)
+            else (-1,-1)
+          arribaDerecha = if (y+1 < 8 && x+1 < 8) then
+              if (head (colores t [(x+1,y+1)])) == Vacia then (x,y+1) else (-1,-1)
+              else (-1,-1)
+          abajoIzquierda = if (y-1 >= 0 && x-1 >= 0) then
+              if (head (colores t [(x-1,y-1)])) == Vacia then (x-1,y-1) else (-1,-1)
+              else (-1,-1)
+          abajoDerecha = if (y-1 >= 0 && x+1 < 8) then
+            if (head (colores t [(x+1,y-1)])) == Vacia then (x+1,y-1) else (-1,-1)
+            else (-1,-1)
+          lp1 = lp ++ [arriba,abajo,izquierda,derecha,arribaIzquierda,arribaDerecha,abajoIzquierda,abajoDerecha]
+          lp2 = eliminaDuplicados lp1
+          lp3 = limpiaLista (-1,-1) lp2
+
+--EliminaDuplicados : Elimina los elementos duplicados y devuelve una lista con
+--solo una instancia de ellos
+eliminaDuplicados :: Eq t => [t] -> [t]
+eliminaDuplicados [] = []
+eliminaDuplicados (e1:r)
+  | elem e1 r = eliminaDuplicados r
+  | otherwise = e1 : eliminaDuplicados r
+
+--LimpiaLista : Elimina las apariciones de un elemento en una lista
+limpiaLista :: Eq t => t -> [t] -> [t]
+limpiaLista _ [] = []
+limpiaLista x (y:ys)
+  | x == y = limpiaLista x ys
+  | otherwise = y : limpiaLista x ys
+
+--EliminaELem : Elimina la primera aparición de un elemento en la lista
+eliminaElem :: Eq t => t -> [t] -> [t]
+eliminaElem _ [] = []
+eliminaElem x (y:ys)
+  | x == y = ys
+  | otherwise = y : eliminaElem x ys
+
+
+{-Impresion de los tableros: Aunque tradicionalmente se representan a los
+jugadores con circulos blancos o negros debido a la falta de colores el jugador
+blanco será representado por el símbolo "O" y el jugador con fichas negras por
+el símbolo "X".-}
+
+--ImprimeFicha:: Imprime el símbolo del jugador
+imprimeFicha :: Color -> String
+imprimeFicha c
+  | c == White = "O"
+  | c == Black = "X"
+  | otherwise = " "
+
+--ImprimeFila : Imprime una fila del tablero
+--t : tablero f: fila
+imprimeFila :: Tablero -> Int -> String
+imprimeFila t f = show f ++ " | " ++
+  (intercalate " | "
+    (List.map(\pos -> print_symbol (board ! pos))
+    ([(x, f) | x <- [0..7]]))) ++" | " ++ show f
+
+--ImprimeTablero
+imprimeTablero :: Tablero -> String
+imprimeTablero =
+  "\n    0   1   2   3   4   5   6   7 \n -----------------------------------\n" ++
+  (intercalate
+  "\n -----------------------------------\n"
+  (List.map (imprimeFila board) $ [0..7])) ++ "\n -----------------------------------\n    0   1   2   3   4   5   6   7 "
+
+{-Juego-}
+
+--Juego:
+-- pr : profundidad t:tablero c:color l:lista de posiciones
+juego :: Int -> Tablero -> Color -> [Posicion] -> IO()
+juego pr t c lp = do
+  let l = validos t c lp
+  if (List.null l)
+    then
+      do
+      putStrLn $ imprimeTablero t
+      putStrLn ("El jugador con fichas negras tiene" ++ (show(fichas t Negro)) ++ "puntos")
+      putStrLn ("El jugador con fichas blancas tiene"++ (show(fichas t Blanco))++ "puntos")
+      if campeon == Vacio then putStrLn "¡Empate! o-o"
+        else if campeon == Negro
+          then do
+            putStrLn "¡El jugador con fichas negras ganó!"
+          else putStrLn "¡El jugador con fichas blancas ganó!"
+    else
+      do
+      putStrLn $ imprimeTablero t
+      if color == Blanco
+        then
+          do
+          putStrLn "Haz tu movimiento jugador blanco"
+          putStrLn ("Quieres una sugerencia?:" ++ show(movAgente c pr l))
+          putStrLn $ List.concat $ List.map show (validos t c l)
+          mb <- movBlanco
+          if valido t Blanco mb
+            then
+              juego pr (pintaMov mb t Blanco) (contrario c) (actTablero t mb lp)
+            else
+              do
+              putStrLn "Movimiento Invalido: No olvides las reglas"
+              juego pr t c lp
+    else
+      do
+      putStrLn "El agente esta buscando un movimiento"
+      let
+        mov = (movAgente t c pr lp)
+        l1 = actTablero t mov lp
+      juego pr (pintaMov mov t Negro) (contrario c) l1
+
+  where
+    ganador = campeon t
+    mb = getMovimiento t Blanco
+    mn = getMovimiento t Negro
